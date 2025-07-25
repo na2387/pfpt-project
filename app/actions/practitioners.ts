@@ -1,24 +1,30 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { Practitioner, INSURANCE } from "@/generated/prisma";
+import { Practitioner } from "@/generated/prisma";
 
-export type PractitionerWithFilters = Practitioner & {
-  _count?: {
-    insurance: number;
-  };
+export type PractitionerWithRelations = Practitioner & {
+  degrees: {
+    degree: {
+      id: string;
+      name: string;
+    };
+  }[];
+  insurances: {
+    insurance: {
+      id: string;
+      name: string;
+    };
+  }[];
 };
 
 export interface SearchFilters {
   name?: string;
-  city?: string;
+  borough?: string;
   state?: string;
   zip?: string;
-  insurance?: INSURANCE[];
-  medicare?: boolean;
-  medicaid?: boolean;
-  tricare?: boolean;
-  workersComp?: boolean;
+  insurance?: string[];
+  degrees?: string[];
 }
 
 export async function getPractitioners(
@@ -39,8 +45,8 @@ export async function getPractitioners(
   }
 
   // Location filters
-  if (filters.city) {
-    where.city = { contains: filters.city, mode: "insensitive" };
+  if (filters.borough) {
+    where.borough = { contains: filters.borough, mode: "insensitive" };
   }
   if (filters.state) {
     where.state = { contains: filters.state, mode: "insensitive" };
@@ -49,23 +55,30 @@ export async function getPractitioners(
     where.zip = { contains: filters.zip };
   }
 
-  // Insurance filters
+  // Insurance filters - now using the correct junction table relation name
   if (filters.insurance && filters.insurance.length > 0) {
-    where.insurance = { hasSome: filters.insurance };
+    where.insurances = {
+      some: {
+        insurance: {
+          name: {
+            in: filters.insurance,
+          },
+        },
+      },
+    };
   }
 
-  // Boolean filters
-  if (filters.medicare !== undefined) {
-    where.medicare = filters.medicare;
-  }
-  if (filters.medicaid !== undefined) {
-    where.medicaid = filters.medicaid;
-  }
-  if (filters.tricare !== undefined) {
-    where.tricare = filters.tricare;
-  }
-  if (filters.workersComp !== undefined) {
-    where.workersComp = filters.workersComp;
+  // Degrees filter - now using the correct junction table relation name
+  if (filters.degrees && filters.degrees.length > 0) {
+    where.degrees = {
+      some: {
+        degree: {
+          name: {
+            in: filters.degrees,
+          },
+        },
+      },
+    };
   }
 
   const [practitioners, total] = await Promise.all([
@@ -73,6 +86,18 @@ export async function getPractitioners(
       where,
       skip,
       take: pageSize,
+      include: {
+        degrees: {
+          include: {
+            degree: true,
+          },
+        },
+        insurances: {
+          include: {
+            insurance: true,
+          },
+        },
+      },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),
     prisma.practitioner.count({ where }),
@@ -83,4 +108,40 @@ export async function getPractitioners(
     total,
     totalPages: Math.ceil(total / pageSize),
   };
+}
+
+// Helper function to get all available insurances for the dropdown
+export async function getAvailableInsurances() {
+  const insurances = await prisma.insurance.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      _count: {
+        select: {
+          practitioners: true,
+        },
+      },
+    },
+  });
+
+  return insurances.filter((insurance) => insurance._count.practitioners > 0);
+}
+
+// Helper function to get all available degrees for filtering
+export async function getAvailableDegrees() {
+  const degrees = await prisma.degree.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      _count: {
+        select: {
+          practitioners: true,
+        },
+      },
+    },
+  });
+
+  return degrees.filter((degree) => degree._count.practitioners > 0);
 }

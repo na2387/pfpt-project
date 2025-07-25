@@ -18,11 +18,38 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, Globe, MapPin } from "lucide-react";
-import { Practitioner } from "@/generated/prisma";
+import { Phone, Globe, MapPin } from "lucide-react";
+
+// Update the type to match your relational data
+interface PractitionerWithRelations {
+  id: string;
+  firstName: string | null;
+  lastName: string;
+  phone: string | null;
+  address: string | null;
+  borough: string | null;
+  state: string | null;
+  zip: string | null;
+  website: string | null;
+  cert: string | null;
+  selfPayInitial: number | null;
+  selfPayFollowUp: number | null;
+  degrees: {
+    degree: {
+      id: string;
+      name: string;
+    };
+  }[];
+  insurances: {
+    insurance: {
+      id: string;
+      name: string;
+    };
+  }[];
+}
 
 interface ProvidersDataTableProps {
-  practitioners: Practitioner[];
+  practitioners: PractitionerWithRelations[];
   total: number;
   currentPage: number;
   totalPages: number;
@@ -38,18 +65,18 @@ export function ProvidersDataTable({
   onPageChange,
   isLoading,
 }: ProvidersDataTableProps) {
-  const formatInsurance = (insurance: string[]) => {
-    return insurance.map((ins) => ins.replace("_", " ")).join(", ");
-  };
-
-  const formatAddress = (practitioner: Practitioner) => {
+  const formatAddress = (practitioner: PractitionerWithRelations) => {
     const parts = [
       practitioner.address,
-      practitioner.city,
+      practitioner.borough,
       practitioner.state,
       practitioner.zip,
     ].filter(Boolean);
     return parts.join(", ");
+  };
+
+  const formatDegrees = (degrees: { degree: { name: string } }[]) => {
+    return degrees.map((d) => d.degree.name).join(", ");
   };
 
   if (isLoading) {
@@ -106,14 +133,14 @@ export function ProvidersDataTable({
                       <div className="font-medium">
                         {practitioner.firstName} {practitioner.lastName}
                       </div>
-                      {practitioner.certs && (
+                      {practitioner.degrees.length > 0 && (
                         <div className="text-sm text-muted-foreground">
-                          {practitioner.certs}
+                          {formatDegrees(practitioner.degrees)}
                         </div>
                       )}
-                      {practitioner.npi && (
+                      {practitioner.cert && (
                         <div className="text-xs text-muted-foreground">
-                          NPI: {practitioner.npi}
+                          Cert: {practitioner.cert}
                         </div>
                       )}
                     </div>
@@ -124,12 +151,6 @@ export function ProvidersDataTable({
                         <div className="flex items-center text-sm">
                           <Phone className="w-3 h-3 mr-1" />
                           {practitioner.phone}
-                        </div>
-                      )}
-                      {practitioner.email && (
-                        <div className="flex items-center text-sm">
-                          <Mail className="w-3 h-3 mr-1" />
-                          {practitioner.email}
                         </div>
                       )}
                       {practitioner.website && (
@@ -157,46 +178,30 @@ export function ProvidersDataTable({
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      {practitioner.insurance.length > 0 && (
+                      {practitioner.insurances.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
-                          {practitioner.insurance.slice(0, 2).map((ins) => (
-                            <Badge
-                              key={ins}
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              {ins.replace("_", " ")}
-                            </Badge>
-                          ))}
-                          {practitioner.insurance.length > 2 && (
+                          {practitioner.insurances
+                            .slice(0, 3)
+                            .map((relation) => (
+                              <Badge
+                                key={relation.insurance.id}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {relation.insurance.name}
+                              </Badge>
+                            ))}
+                          {practitioner.insurances.length > 3 && (
                             <Badge variant="outline" className="text-xs">
-                              +{practitioner.insurance.length - 2} more
+                              +{practitioner.insurances.length - 3} more
                             </Badge>
                           )}
                         </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">
+                          No insurance info
+                        </div>
                       )}
-                      <div className="flex flex-wrap gap-1">
-                        {practitioner.medicare && (
-                          <Badge variant="outline" className="text-xs">
-                            Medicare
-                          </Badge>
-                        )}
-                        {practitioner.medicaid && (
-                          <Badge variant="outline" className="text-xs">
-                            Medicaid
-                          </Badge>
-                        )}
-                        {practitioner.tricare && (
-                          <Badge variant="outline" className="text-xs">
-                            Tricare
-                          </Badge>
-                        )}
-                        {practitioner.workersComp && (
-                          <Badge variant="outline" className="text-xs">
-                            Workers' Comp
-                          </Badge>
-                        )}
-                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -208,6 +213,14 @@ export function ProvidersDataTable({
                       {practitioner.selfPayFollowUp !== null &&
                         practitioner.selfPayFollowUp > 0 && (
                           <div>Follow-up: ${practitioner.selfPayFollowUp}</div>
+                        )}
+                      {(!practitioner.selfPayInitial ||
+                        practitioner.selfPayInitial === 0) &&
+                        (!practitioner.selfPayFollowUp ||
+                          practitioner.selfPayFollowUp === 0) && (
+                          <div className="text-muted-foreground">
+                            Contact for rates
+                          </div>
                         )}
                     </div>
                   </TableCell>
