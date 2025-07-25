@@ -138,17 +138,6 @@ export function ProviderSearch({ onSearch, isLoading }: ProviderSearchProps) {
               />
             </div>
             <div>
-              <Label htmlFor="state">State</Label>
-              <Input
-                id="state"
-                placeholder="State"
-                value={filters.state || ""}
-                onChange={(e) =>
-                  setFilters({ ...filters, state: e.target.value })
-                }
-              />
-            </div>
-            <div>
               <Label htmlFor="zip">ZIP Code</Label>
               <Input
                 id="zip"
