@@ -22,10 +22,10 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## To Do
 
-[ ] Dropdown borough search
-[ ] Click out of insurance badges in search
-[ ] Expand to see all insurances in results (pop-up on mouse over of "+x more"?)
-[ ] Sort by column
-[ ] Faster provider load speeds
+[x] Dropdown borough search
+[x] Click out of insurance badges in search
+[x] Expand to see all insurances in results (pop-up on mouse over of "+x more"?)
+[x] Sort by column
+[x] Faster provider load speeds
 [ ] Ensure rate columns are accurate to intent
-[ ] Better pagination (first page, last page, etc.)
+[x] Better pagination (first page, last page, etc.)
