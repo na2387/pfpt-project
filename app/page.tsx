@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ProviderSearch } from "@/components/ProviderSearch";
@@ -11,7 +11,7 @@ import {
   SortOptions,
 } from "@/app/actions/practitioners";
 
-export default function ProvidersPage() {
+function ProvidersPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -107,7 +107,7 @@ export default function ProvidersPage() {
   // Create a query key that includes all search parameters
   const queryKey = ["practitioners", currentFilters, currentPage, currentSort];
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey,
     queryFn: () =>
       getPractitioners(currentFilters, currentPage, 10, currentSort),
@@ -220,5 +220,23 @@ export default function ProvidersPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex items-center justify-center h-32">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    </div>
+  );
+}
+
+export default function ProvidersPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ProvidersPageContent />
+    </Suspense>
   );
 }
