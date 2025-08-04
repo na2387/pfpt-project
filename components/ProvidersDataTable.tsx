@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -16,9 +15,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Globe, MapPin } from "lucide-react";
+import {
+  Phone,
+  Globe,
+  MapPin,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
+import {
+  SortField,
+  SortDirection,
+  SortOptions,
+} from "@/app/actions/practitioners";
+import { Pagination } from "@/components/Pagination";
 
 // Update the type to match your relational data
 interface PractitionerWithRelations {
@@ -46,6 +63,9 @@ interface PractitionerWithRelations {
       name: string;
     };
   }[];
+  _count: {
+    insurances: number;
+  };
 }
 
 interface ProvidersDataTableProps {
@@ -54,7 +74,126 @@ interface ProvidersDataTableProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  onSort: (sort: SortOptions) => void;
+  currentSort: SortOptions;
   isLoading?: boolean;
+}
+
+// Sortable header component
+function SortableHeader({
+  field,
+  currentSort,
+  onSort,
+  children,
+}: {
+  field: SortField;
+  currentSort: SortOptions;
+  onSort: (sort: SortOptions) => void;
+  children: React.ReactNode;
+}) {
+  const isActive = currentSort.field === field;
+  const nextDirection: SortDirection =
+    isActive && currentSort.direction === "asc" ? "desc" : "asc";
+
+  const handleSort = () => {
+    onSort({ field, direction: nextDirection });
+  };
+
+  const getSortIcon = () => {
+    if (!isActive) {
+      return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />;
+    }
+    return currentSort.direction === "asc" ? (
+      <ArrowUp className="ml-2 h-4 w-4" />
+    ) : (
+      <ArrowDown className="ml-2 h-4 w-4" />
+    );
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      onClick={handleSort}
+      className="h-auto p-0 font-medium hover:bg-transparent"
+    >
+      {children}
+      {getSortIcon()}
+    </Button>
+  );
+}
+
+function InsuranceDisplay({
+  insurances,
+}: {
+  insurances: { insurance: { id: string; name: string } }[];
+}) {
+  const displayCount = 3;
+  const visibleInsurances = insurances.slice(0, displayCount);
+  const hiddenCount = insurances.slice(displayCount);
+  const hasMore = hiddenCount.length > 0;
+
+  if (insurances.length === 0) {
+    return (
+      <div className="text-xs text-muted-foreground">No insurance info</div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap gap-1">
+        {visibleInsurances.map((relation) => (
+          <Badge
+            key={relation.insurance.id}
+            variant="secondary"
+            className="text-xs"
+          >
+            {relation.insurance.name}
+          </Badge>
+        ))}
+
+        {hasMore && (
+          <HoverCard>
+            <HoverCardTrigger asChild>
+              <Badge
+                variant="outline"
+                className="text-xs cursor-pointer hover:bg-muted transition-colors"
+              >
+                +{hiddenCount.length} more
+              </Badge>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-64">
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold">
+                  All Accepted Insurance Plans
+                </h4>
+                <div className="grid grid-cols-1 gap-1 max-h-60 overflow-y-auto">
+                  {insurances.map((relation, index) => (
+                    <div
+                      key={relation.insurance.id}
+                      className={`text-sm p-2 rounded ${
+                        index < displayCount ? "bg-muted" : "bg-background"
+                      }`}
+                    >
+                      {relation.insurance.name}
+                      {index < displayCount && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          (shown above)
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="text-xs text-muted-foreground border-t pt-2">
+                  Total {insurances.length} insurance plans
+                  {insurances.length !== 1 ? "s" : ""}
+                </div>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function ProvidersDataTable({
@@ -63,6 +202,8 @@ export function ProvidersDataTable({
   currentPage,
   totalPages,
   onPageChange,
+  onSort,
+  currentSort,
   isLoading,
 }: ProvidersDataTableProps) {
   const formatAddress = (practitioner: PractitionerWithRelations) => {
@@ -110,7 +251,13 @@ export function ProvidersDataTable({
       <CardHeader>
         <CardTitle>Healthcare Providers</CardTitle>
         <CardDescription>
-          Found {total} provider{total !== 1 ? "s" : ""}
+          Found {total} provider{total !== 1 ? "s" : ""} • Sorted by{" "}
+          {currentSort.field === "name"
+            ? "Provider Name"
+            : currentSort.field === "insurance_count"
+            ? "Insurance Count"
+            : "Self-Pay Rates"}{" "}
+          ({currentSort.direction === "asc" ? "A-Z" : "Z-A"})
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -118,11 +265,41 @@ export function ProvidersDataTable({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Provider</TableHead>
+                <TableHead>
+                  <SortableHeader
+                    field="name"
+                    currentSort={currentSort}
+                    onSort={onSort}
+                  >
+                    Provider
+                  </SortableHeader>
+                </TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Location</TableHead>
-                <TableHead>Insurance</TableHead>
-                <TableHead>Self-Pay Rates</TableHead>
+                <TableHead>
+                  <SortableHeader
+                    field="insurance_count"
+                    currentSort={currentSort}
+                    onSort={onSort}
+                  >
+                    Insurance (
+                    {practitioners.length > 0
+                      ? practitioners[0]._count
+                        ? "Count"
+                        : ""
+                      : ""}
+                    )
+                  </SortableHeader>
+                </TableHead>
+                <TableHead>
+                  <SortableHeader
+                    field="self_pay"
+                    currentSort={currentSort}
+                    onSort={onSort}
+                  >
+                    Self-Pay Rates
+                  </SortableHeader>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -178,30 +355,16 @@ export function ProvidersDataTable({
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      {practitioner.insurances.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {practitioner.insurances
-                            .slice(0, 3)
-                            .map((relation) => (
-                              <Badge
-                                key={relation.insurance.id}
-                                variant="secondary"
-                                className="text-xs"
-                              >
-                                {relation.insurance.name}
-                              </Badge>
-                            ))}
-                          {practitioner.insurances.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{practitioner.insurances.length - 3} more
-                            </Badge>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">
-                          No insurance info
-                        </div>
-                      )}
+                      <InsuranceDisplay insurances={practitioner.insurances} />
+                      <div className="text-xs text-muted-foreground">
+                        {practitioner._count?.insurances ||
+                          practitioner.insurances.length}{" "}
+                        plan
+                        {(practitioner._count?.insurances ||
+                          practitioner.insurances.length) !== 1
+                          ? "s"
+                          : ""}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -230,31 +393,12 @@ export function ProvidersDataTable({
           </Table>
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between space-x-2 py-4">
-            <div className="text-sm text-muted-foreground">
-              Page {currentPage} of {totalPages}
-            </div>
-            <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onPageChange(currentPage - 1)}
-                disabled={currentPage <= 1}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onPageChange(currentPage + 1)}
-                disabled={currentPage >= totalPages}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          isLoading={isLoading}
+        />
       </CardContent>
     </Card>
   );
