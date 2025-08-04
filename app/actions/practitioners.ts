@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { Practitioner } from "@/generated/prisma";
+import { Practitioner, Prisma } from "@/generated/prisma";
 import { unstable_cache } from "next/cache";
 
 export type PractitionerWithRelations = Practitioner & {
@@ -112,7 +112,7 @@ export async function getPractitioners(
 ) {
   const skip = (page - 1) * pageSize;
 
-  const where: any = {};
+  const where: Prisma.PractitionerWhereInput = {};
 
   // Name search (firstName or lastName)
   if (filters.name) {
@@ -160,7 +160,7 @@ export async function getPractitioners(
   }
 
   // Build orderBy based on sort options
-  let orderBy: any = [];
+  let orderBy: Prisma.PractitionerOrderByWithRelationInput[] = [];
 
   switch (sort.field) {
     case "name":
